@@ -2802,3 +2802,270 @@ console.log('✅ Part 6 loaded: Server startup complete!');
 console.log('\n🎉 ALL 6 PARTS LOADED SUCCESSFULLY! SERVER v6.0 READY!\n');
 
 // ========== END OF PART 6 ==========
+// ========== SERVER v6.0 COMPLETE WITH DOWNLOAD LINKS ==========
+
+/*
+═══════════════════════════════════════════════════════════════════════════
+                  UYEH TECH SERVER v6.0 - COMPLETE DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════
+
+VERSION: 6.0.0 with Download Links
+RELEASE DATE: December 2024
+STATUS: Production Ready
+ADMIN EMAIL: uyehtech@gmail.com
+
+COMPLETE INSTALLATION GUIDE:
+───────────────────────────────────────────────────────────────────────────
+1. CREATE PROJECT:
+   mkdir uyeh-tech-server
+   cd uyeh-tech-server
+   npm init -y
+
+2. INSTALL DEPENDENCIES:
+   npm install express mongoose bcryptjs jsonwebtoken cors axios dotenv
+
+3. CREATE server.js:
+   - Copy all 6 parts into a single server.js file
+   - Parts must be in order (1-6)
+
+4. CREATE .env FILE:
+   MONGO_URI=your_mongodb_connection_string
+   JWT_SECRET=your_secret_key_here
+   TERMII_API_KEY=your_termii_key (optional)
+   TERMII_SENDER_EMAIL=noreply@uyehtech.com
+   FLUTTERWAVE_SECRET_KEY=your_flutterwave_key
+   PORT=3000
+   NODE_ENV=production
+
+5. RUN SERVER:
+   node server.js
+
+DOWNLOAD LINK FEATURE - COMPLETE GUIDE:
+───────────────────────────────────────────────────────────────────────────
+✨ NEW FEATURES IN v6.0:
+  ✅ Download link field in Product schema
+  ✅ Enhanced orders endpoint with download links
+  ✅ Download tracking system
+  ✅ Download statistics for admins
+  ✅ Automatic product linking to orders
+  ✅ Sample products with download links
+
+📥 SETTING UP DOWNLOAD LINKS:
+
+OPTION 1: Google Drive (Recommended for beginners)
+  1. Upload your product file to Google Drive
+  2. Right-click → Share → Change to "Anyone with the link"
+  3. Copy the link (looks like: drive.google.com/file/d/FILE_ID/view)
+  4. Extract the FILE_ID from the URL
+  5. Use direct download format in product:
+     https://drive.google.com/uc?export=download&id=FILE_ID
+  6. Or use view format (users click to download):
+     https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+
+OPTION 2: Dropbox
+  1. Upload file to Dropbox
+  2. Get shareable link
+  3. Add ?dl=1 to the end for direct download
+  4. Example: https://www.dropbox.com/s/FILE_ID/file.zip?dl=1
+
+OPTION 3: Your Own Server
+  1. Upload files to your server
+  2. Use direct URL: https://yourserver.com/downloads/product.zip
+  3. Make sure files are publicly accessible
+
+OPTION 4: AWS S3 / Cloudflare R2
+  1. Upload to cloud storage
+  2. Generate public or presigned URLs
+  3. Use those URLs as download links
+
+📝 ADDING DOWNLOAD LINKS TO PRODUCTS:
+
+METHOD 1: Admin Dashboard
+  1. Login to admin dashboard (admin-dashboard.html)
+  2. Go to Products section
+  3. Create or Edit product
+  4. Add download link in the "Download Link" field
+  5. Save product
+
+METHOD 2: API Request
+  POST /api/admin/products
+  {
+    "title": "Product Name",
+    "description": "Description",
+    "category": "Category",
+    "price": 49.99,
+    "downloadLink": "https://drive.google.com/uc?export=download&id=YOUR_FILE_ID",
+    "fileSize": "5.2 MB",
+    "version": "1.0"
+  }
+
+METHOD 3: Seed Sample Products
+  POST /api/admin/products/seed-with-downloads
+  (Remember to update the FILE_ID placeholders in the code!)
+
+🎯 HOW DOWNLOAD LINKS WORK:
+
+1. CUSTOMER PURCHASES:
+   - Customer completes order
+   - Order status becomes "completed"
+   - Download links are accessible
+
+2. ACCESSING DOWNLOADS:
+   - Customer visits my-orders.html or success.html
+   - Frontend calls GET /api/orders/detailed
+   - Response includes full product details with download links
+   - Customer can download immediately
+
+3. DOWNLOAD TRACKING:
+   - When customer clicks download button
+   - Frontend calls POST /api/orders/track-download
+   - System records: user, product, order, timestamp, IP, user-agent
+   - Admin can view download statistics
+
+4. ADMIN MONITORING:
+   - View download stats: GET /api/admin/downloads/stats
+   - See: total downloads, popular products, recent downloads
+   - Track download trends over time
+
+API ENDPOINTS FOR DOWNLOAD SYSTEM:
+───────────────────────────────────────────────────────────────────────────
+📥 USER ENDPOINTS:
+  GET  /api/orders/detailed
+    - Returns orders with full product details including download links
+    - Only shows downloads for completed orders
+    - Automatically links products to order items
+
+  POST /api/orders/track-download
+    Body: { "productId": "...", "orderId": "..." }
+    - Tracks when user downloads a product
+    - Verifies user owns the order
+    - Records download statistics
+
+📊 ADMIN ENDPOINTS:
+  GET  /api/admin/downloads/stats
+    - Total downloads count
+    - Most popular products
+    - Recent downloads list
+    - Downloads by date (last 30 days)
+
+  POST /api/admin/products/seed-with-downloads
+    - Seeds 4 sample products with download links
+    - Includes templates, components, and courses
+    - Remember to update FILE_IDs!
+
+FRONTEND INTEGRATION EXAMPLE:
+───────────────────────────────────────────────────────────────────────────
+// Fetch orders with download links
+const response = await fetch('http://localhost:3000/api/orders/detailed', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const data = await response.json();
+
+// Display download buttons for completed orders
+data.orders.forEach(order => {
+  if (order.canDownload) {
+    order.items.forEach(item => {
+      if (item.downloadLink) {
+        // Show download button
+        console.log(`Download: ${item.title}`);
+        console.log(`Link: ${item.downloadLink}`);
+        
+        // Track download when clicked
+        await fetch('http://localhost:3000/api/orders/track-download', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            productId: item.productId,
+            orderId: order._id
+          })
+        });
+      }
+    });
+  }
+});
+
+SECURITY CONSIDERATIONS:
+───────────────────────────────────────────────────────────────────────────
+✅ Download verification:
+  - Only completed orders can download
+  - User must own the order
+  - JWT authentication required
+
+✅ Link protection options:
+  - Use presigned URLs (AWS S3, R2)
+  - Implement download tokens
+  - Set expiring links
+  - Limit download attempts
+
+✅ File storage best practices:
+  - Don't store sensitive files publicly
+  - Use CDN for large files
+  - Monitor bandwidth usage
+  - Consider download limits per user
+
+COMPLETE FEATURE CHECKLIST:
+───────────────────────────────────────────────────────────────────────────
+✅ Admin Dashboard System
+✅ User Management (Ban, Delete, View)
+✅ Order Management (Track, Update, Refund)
+✅ Product Management (CRUD Operations)
+✅ Download Link Management (NEW!)
+✅ Download Tracking System (NEW!)
+✅ Download Statistics (NEW!)
+✅ Coupon System (Create, Validate)
+✅ Blog Management (Posts, Comments, SEO)
+✅ Analytics Dashboard (Revenue, Orders, Downloads)
+✅ Email OTP Verification
+✅ Payment Integration (Flutterwave)
+✅ 2FA Support
+✅ System Settings
+✅ User Preferences
+✅ Profile Management
+✅ Password Reset
+✅ Ban System
+
+TESTING THE DOWNLOAD SYSTEM:
+───────────────────────────────────────────────────────────────────────────
+1. Start server: node server.js
+2. Create admin account with uyehtech@gmail.com
+3. Seed products: POST /api/admin/products/seed-with-downloads
+4. Update FILE_IDs in seeded products
+5. Create test order with test user
+6. Mark order as completed (admin dashboard)
+7. Test user fetches orders: GET /api/orders/detailed
+8. Download links should appear
+9. Track download: POST /api/orders/track-download
+10. View stats: GET /api/admin/downloads/stats
+
+TROUBLESHOOTING:
+───────────────────────────────────────────────────────────────────────────
+❌ Download links not showing?
+  → Check order status is "completed"
+  → Verify product has downloadLink field populated
+  → Check user authentication token
+
+❌ Google Drive links not working?
+  → Ensure file sharing is "Anyone with the link"
+  → Use correct format: drive.google.com/uc?export=download&id=FILE_ID
+  → Check file ID is correct
+
+❌ Download tracking not working?
+  → Verify productId and orderId are valid
+  → Check user owns the order
+  → Ensure authentication token is valid
+
+SUPPORT:
+───────────────────────────────────────────────────────────────────────────
+For issues or questions:
+  📧 Email: uyehtech@gmail.com
+  📝 Check server logs for detailed error messages
+  🔍 Use console.log statements for debugging
+
+═══════════════════════════════════════════════════════════════════════════
+                    🎉 SERVER v6.0 COMPLETE & READY!
+                       WITH FULL DOWNLOAD LINK SUPPORT
+═══════════════════════════════════════════════════════════════════════════
+*/
