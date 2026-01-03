@@ -1,5 +1,5 @@
-// ========== UYEH TECH BACKEND SERVER v6.0 - PART 1 OF 6 ==========
-// COMPLETE ADMIN DASHBOARD SYSTEM WITH DOWNLOAD LINKS
+// ========== UYEH TECH BACKEND SERVER v7.0 - PART 1 OF 6 ==========
+// COMPLETE ADMIN DASHBOARD + DOWNLOAD LINKS + RATING SYSTEM
 // Setup, Configuration, and Core Schemas
 // Admin Email: uyehtech@gmail.com
 
@@ -35,7 +35,7 @@ const PORT = process.env.PORT || 3000;
 
 // ========== STARTUP VALIDATION ==========
 console.log('\n╔═══════════════════════════════════════════════════════════════╗');
-console.log('║     UYEH TECH SERVER v6.0 - ADMIN DASHBOARD + DOWNLOADS     ║');
+console.log('║    UYEH TECH SERVER v7.0 - ADMIN + DOWNLOADS + RATINGS      ║');
 console.log('╚═══════════════════════════════════════════════════════════════╝\n');
 console.log('📋 Configuration Status:');
 console.log('  MongoDB:', MONGO_URI ? '✅ Connected' : '❌ Missing');
@@ -43,7 +43,7 @@ console.log('  JWT Secret:', JWT_SECRET ? '✅ Configured' : '❌ Missing');
 console.log('  Termii API:', TERMII_API_KEY ? '✅ Configured' : '❌ Missing');
 console.log('  Flutterwave:', FLUTTERWAVE_SECRET_KEY ? '✅ Configured' : '❌ Missing');
 console.log('  Admin Email:', ADMIN_EMAIL);
-console.log('\n🎉 NEW in v6.0: Download Links + Admin Dashboard\n');
+console.log('\n🎉 NEW in v7.0: Rating & Review System\n');
 
 // ========== CONNECT TO MONGODB ==========
 mongoose.connect(MONGO_URI)
@@ -161,7 +161,7 @@ couponSchema.index({ code: 1 });
 
 const Coupon = mongoose.model('Coupon', couponSchema);
 
-// ========== PRODUCT SCHEMA (WITH DOWNLOAD LINKS) ==========
+// ========== PRODUCT SCHEMA (WITH RATING SUPPORT) ==========
 const productSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true },
@@ -172,7 +172,7 @@ const productSchema = new mongoose.Schema({
   image: String,
   images: [String],
   features: [String],
-  downloadLink: { type: String, default: '' }, // DOWNLOAD LINK FIELD
+  downloadLink: { type: String, default: '' },
   fileSize: String,
   version: String,
   requirements: [String],
@@ -197,7 +197,77 @@ productSchema.pre('save', function(next) {
 
 const Product = mongoose.model('Product', productSchema);
 
-// ========== DOWNLOAD TRACKING SCHEMA (NEW) ==========
+// ========== RATING SCHEMA (NEW) ==========
+const ratingSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Ensure one rating per user per product
+ratingSchema.index({ product: 1, user: 1 }, { unique: true });
+
+const Rating = mongoose.model('Rating', ratingSchema);
+
+// ========== REVIEW SCHEMA (NEW) ==========
+const reviewSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  rating: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  comment: {
+    type: String,
+    maxlength: 500
+  },
+  verified: {
+    type: Boolean,
+    default: false
+  },
+  helpful: {
+    type: Number,
+    default: 0
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Ensure one review per user per product
+reviewSchema.index({ product: 1, user: 1 }, { unique: true });
+
+const Review = mongoose.model('Review', reviewSchema);
+
+// ========== DOWNLOAD TRACKING SCHEMA ==========
 const downloadSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -340,13 +410,43 @@ function generateSlug(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-console.log('✅ Part 1 loaded: All Schemas configured with Download support');
-console.log('📦 Models: User, Order, Coupon, Product, Download, Blog, Analytics, Settings');
+// ========== RECALCULATE PRODUCT RATING (HELPER) ==========
+async function recalculateProductRating(productId) {
+  try {
+    const ratings = await Rating.find({ product: productId });
+    
+    if (ratings.length === 0) {
+      await Product.findByIdAndUpdate(productId, {
+        rating: 0,
+        reviewCount: 0
+      });
+      return;
+    }
+
+    const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = totalRating / ratings.length;
+
+    await Product.findByIdAndUpdate(productId, {
+      rating: Math.round(averageRating * 10) / 10,
+      reviewCount: ratings.length
+    });
+
+    console.log(`✅ Updated rating for product ${productId}: ${averageRating.toFixed(1)}`);
+  } catch (error) {
+    console.error('❌ Recalculate rating error:', error);
+  }
+}
+
+console.log('✅ Part 1 loaded: All Schemas configured with Rating & Review support');
+console.log('📦 Models: User, Order, Coupon, Product, Rating, Review, Download, Blog, Analytics, Settings');
 
 // ========== END OF PART 1 ==========
-// Continue to Part 2 for Email Functions and Auth Routes// ========== UYEH TECH SERVER v6.0 - PART 2 OF 6 ==========
+// Continue to Part 2 for Email Functions and Auth Routes
+
+// ========== UYEH TECH SERVER v7.0 - PART 2 OF 6 ==========
 // Email Functions and Authentication Routes
 // COPY THIS AFTER PART 1
+// (This part remains the same - no changes needed)
 
 // ========== SEND EMAIL WITH OTP ==========
 async function sendEmailOTP(to, otp, purpose = 'verification') {
@@ -507,14 +607,15 @@ async function authenticateAdmin(req, res, next) {
 // ========== ROUTES ==========
 app.get('/', (req, res) => {
   res.json({
-    message: '🚀 UYEH TECH API v6.0 - Admin Dashboard + Downloads',
-    version: '6.0.0',
+    message: '🚀 UYEH TECH API v7.0 - Admin Dashboard + Downloads + Ratings',
+    version: '7.0.0',
     status: 'active',
     adminEmail: ADMIN_EMAIL,
     features: [
       '✅ Complete Admin Dashboard',
       '✅ Download Link Management',
       '✅ Download Tracking',
+      '✅ Rating & Review System (NEW!)',
       '✅ Analytics System',
       '✅ User Management',
       '✅ Order Management',
@@ -526,7 +627,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// ========== AUTH ROUTES ==========
+// ========== AUTH ROUTES (Same as before) ==========
 app.post('/api/auth/send-email-otp', async (req, res) => {
   try {
     const { email } = req.body;
@@ -764,7 +865,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-// ========== ADMIN AUTH ==========
 app.post('/api/auth/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -813,7 +913,6 @@ app.get('/api/auth/admin/verify', authenticateAdmin, async (req, res) => {
   });
 });
 
-// ========== USER PROFILE ==========
 app.get('/api/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password -twoFactorSecret');
@@ -884,8 +983,9 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
 console.log('✅ Part 2 loaded: Auth & User routes configured');
 
 // ========== END OF PART 2 ==========
-// Continue to Part 3 for Admin Dashboard & Analytics// ========== UYEH TECH SERVER v6.0 - PART 3 OF 6 ==========
-// Admin Dashboard, Analytics & User Management
+// Continue to Part 3 for Admin Dashboard & Analytics
+// ========== UYEH TECH SERVER v7.0 - PART 3 OF 6 ==========
+// Admin Dashboard, Analytics, User Management & RATING SYSTEM
 // COPY THIS AFTER PART 2
 
 // ========== ADMIN DASHBOARD OVERVIEW ==========
@@ -898,6 +998,8 @@ app.get('/api/admin/dashboard', authenticateAdmin, async (req, res) => {
     const publishedPosts = await BlogPost.countDocuments({ status: 'published' });
     const activeCoupons = await Coupon.countDocuments({ isActive: true });
     const totalDownloads = await Download.countDocuments();
+    const totalRatings = await Rating.countDocuments();
+    const totalReviews = await Review.countDocuments();
     
     // Revenue calculation
     const revenueData = await Order.aggregate([
@@ -914,6 +1016,7 @@ app.get('/api/admin/dashboard', authenticateAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
     const recentDownloads = await Download.countDocuments({ downloadedAt: { $gte: sevenDaysAgo } });
+    const recentRatings = await Rating.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
 
     // New users (last 7 days)
     const newUsers = await User.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
@@ -944,13 +1047,16 @@ app.get('/api/admin/dashboard', authenticateAdmin, async (req, res) => {
           activeCoupons,
           totalBlogPosts,
           publishedPosts,
-          totalDownloads
+          totalDownloads,
+          totalRatings,
+          totalReviews
         },
         recentStats: {
           newUsers,
           recentOrders,
           recentRevenue: recentRevenue[0]?.total || 0,
-          recentDownloads
+          recentDownloads,
+          recentRatings
         },
         topProducts,
         recentOrdersList
@@ -1019,6 +1125,17 @@ app.get('/api/admin/analytics', authenticateAdmin, async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
+    // Rating trends
+    const ratingTrends = await Rating.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        count: { $sum: 1 },
+        avgRating: { $avg: '$rating' }
+      }},
+      { $sort: { _id: 1 } }
+    ]);
+
     // Product performance
     const productPerformance = await Order.aggregate([
       { $match: { status: 'completed', createdAt: { $gte: startDate } } },
@@ -1051,6 +1168,7 @@ app.get('/api/admin/analytics', authenticateAdmin, async (req, res) => {
         dailyStats,
         userGrowth,
         downloadTrends,
+        ratingTrends,
         productPerformance,
         categoryStats
       }
@@ -1098,6 +1216,8 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
       users.map(async (user) => {
         const orderCount = await Order.countDocuments({ userId: user._id });
         const downloadCount = await Download.countDocuments({ userId: user._id });
+        const ratingCount = await Rating.countDocuments({ user: user._id });
+        const reviewCount = await Review.countDocuments({ user: user._id });
         const totalSpent = await Order.aggregate([
           { $match: { userId: user._id, status: 'completed' } },
           { $group: { _id: null, total: { $sum: '$total' } } }
@@ -1106,6 +1226,8 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
           ...user.toObject(),
           orderCount,
           downloadCount,
+          ratingCount,
+          reviewCount,
           totalSpent: totalSpent[0]?.total || 0
         };
       })
@@ -1137,6 +1259,8 @@ app.get('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     const orders = await Order.find({ userId: user._id }).sort({ createdAt: -1 }).limit(10);
     const orderCount = await Order.countDocuments({ userId: user._id });
     const downloadCount = await Download.countDocuments({ userId: user._id });
+    const ratingCount = await Rating.countDocuments({ user: user._id });
+    const reviewCount = await Review.countDocuments({ user: user._id });
     const totalSpent = await Order.aggregate([
       { $match: { userId: user._id, status: 'completed' } },
       { $group: { _id: null, total: { $sum: '$total' } } }
@@ -1148,6 +1272,8 @@ app.get('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
         ...user.toObject(),
         orderCount,
         downloadCount,
+        ratingCount,
+        reviewCount,
         totalSpent: totalSpent[0]?.total || 0,
         recentOrders: orders
       }
@@ -1206,6 +1332,8 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     await Order.deleteMany({ userId });
     await PaymentMethod.deleteMany({ userId });
     await Download.deleteMany({ userId });
+    await Rating.deleteMany({ user: userId });
+    await Review.deleteMany({ user: userId });
     await User.findByIdAndDelete(userId);
 
     res.json({ success: true, message: 'User deleted successfully' });
@@ -1462,12 +1590,411 @@ app.post('/api/orders/verify-payment', authenticateToken, async (req, res) => {
   }
 });
 
-console.log('✅ Part 3 loaded: Dashboard, Analytics, Users & Orders configured');
+console.log('✅ Part 3 loaded: Dashboard, Analytics, Users, Orders & Rating Stats configured');
 
 // ========== END OF PART 3 ==========
-// Continue to Part 4 for Download Links & Product Management// ========== UYEH TECH SERVER v6.0 - PART 4 OF 6 ==========
-// Download Links, Product Management & Coupon System
+// Continue to Part 4 for Rating System & Product Management
+// ========== UYEH TECH SERVER v7.0 - PART 4 OF 6 ==========
+// COMPLETE RATING & REVIEW SYSTEM + Download Links & Product Management
 // COPY THIS AFTER PART 3
+
+// ========== RATING & REVIEW SYSTEM ==========
+
+// 1. SUBMIT OR UPDATE RATING
+app.post('/api/products/:id/rate', authenticateToken, async (req, res) => {
+  try {
+    const { rating } = req.body;
+    const productId = req.params.id;
+    const userId = req.user.userId;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Check if user already rated (update or create)
+    let existingRating = await Rating.findOne({
+      product: productId,
+      user: userId
+    });
+
+    if (existingRating) {
+      // Update existing rating
+      existingRating.rating = rating;
+      await existingRating.save();
+
+      // Recalculate product rating
+      await recalculateProductRating(productId);
+
+      return res.json({
+        success: true,
+        message: 'Rating updated successfully',
+        rating: existingRating,
+        newRating: product.rating
+      });
+    } else {
+      // Create new rating
+      const newRating = new Rating({
+        product: productId,
+        user: userId,
+        rating
+      });
+
+      await newRating.save();
+
+      // Update product review count and rating
+      await recalculateProductRating(productId);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Rating submitted successfully',
+        rating: newRating,
+        newRating: product.rating
+      });
+    }
+  } catch (error) {
+    console.error('❌ Rating submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit rating',
+      error: error.message
+    });
+  }
+});
+
+// 2. DELETE RATING
+app.delete('/api/products/:id/rate', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const userId = req.user.userId;
+
+    // Find and delete rating
+    const rating = await Rating.findOneAndDelete({
+      product: productId,
+      user: userId
+    });
+
+    if (!rating) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rating not found'
+      });
+    }
+
+    // Recalculate product rating
+    await recalculateProductRating(productId);
+
+    res.json({
+      success: true,
+      message: 'Rating removed successfully'
+    });
+  } catch (error) {
+    console.error('❌ Rating deletion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove rating',
+      error: error.message
+    });
+  }
+});
+
+// 3. CHECK IF USER CAN RATE
+app.get('/api/products/:id/can-rate', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const userId = req.user.userId;
+
+    // Check if user has purchased the product
+    const hasPurchased = await Order.findOne({
+      userId: userId,
+      'items.id': productId,
+      status: { $in: ['completed', 'delivered'] }
+    });
+
+    res.json({
+      success: true,
+      canRate: true, // Set to !!hasPurchased if you require purchase
+      hasPurchased: !!hasPurchased
+    });
+  } catch (error) {
+    console.error('❌ Can rate check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check rating permission',
+      error: error.message
+    });
+  }
+});
+
+// 4. SUBMIT REVIEW (WITH RATING)
+app.post('/api/products/:id/review', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const productId = req.params.id;
+    const userId = req.user.userId;
+
+    // Validate
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    if (comment && comment.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Review must be 500 characters or less'
+      });
+    }
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Check if user purchased the product
+    const hasPurchased = await Order.findOne({
+      userId: userId,
+      'items.id': productId,
+      status: { $in: ['completed', 'delivered'] }
+    });
+
+    // Check if user already reviewed
+    let existingReview = await Review.findOne({
+      product: productId,
+      user: userId
+    });
+
+    if (existingReview) {
+      // Update existing review
+      existingReview.rating = rating;
+      existingReview.comment = comment || '';
+      existingReview.verified = !!hasPurchased;
+      await existingReview.save();
+
+      // Update rating separately
+      await Rating.findOneAndUpdate(
+        { product: productId, user: userId },
+        { rating },
+        { upsert: true }
+      );
+
+      await recalculateProductRating(productId);
+
+      return res.json({
+        success: true,
+        message: 'Review updated successfully',
+        review: existingReview
+      });
+    } else {
+      // Create new review
+      const newReview = new Review({
+        product: productId,
+        user: userId,
+        rating,
+        comment: comment || '',
+        verified: !!hasPurchased
+      });
+
+      await newReview.save();
+
+      // Also create/update rating
+      await Rating.findOneAndUpdate(
+        { product: productId, user: userId },
+        { rating },
+        { upsert: true }
+      );
+
+      await recalculateProductRating(productId);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Review submitted successfully',
+        review: newReview
+      });
+    }
+  } catch (error) {
+    console.error('❌ Review submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit review',
+      error: error.message
+    });
+  }
+});
+
+// 5. GET PRODUCT REVIEWS
+app.get('/api/products/:id/reviews', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
+    const reviews = await Review.find({ product: productId })
+      .populate('user', 'fullName email profileImage')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip);
+
+    const total = await Review.countDocuments({ product: productId });
+
+    // Format reviews
+    const formattedReviews = reviews.map(review => ({
+      _id: review._id,
+      rating: review.rating,
+      comment: review.comment,
+      verified: review.verified,
+      helpful: review.helpful,
+      createdAt: review.createdAt,
+      userName: review.user?.fullName || 'Anonymous',
+      userAvatar: review.user?.profileImage || null
+    }));
+
+    res.json({
+      success: true,
+      reviews: formattedReviews,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get reviews error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reviews',
+      error: error.message
+    });
+  }
+});
+
+// 6. GET USER'S RATING FOR A PRODUCT
+app.get('/api/products/:id/user-rating', authenticateToken, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const userId = req.user.userId;
+
+    const rating = await Rating.findOne({
+      product: productId,
+      user: userId
+    });
+
+    res.json({
+      success: true,
+      rating: rating ? rating.rating : null,
+      hasRated: !!rating
+    });
+  } catch (error) {
+    console.error('❌ Get user rating error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user rating',
+      error: error.message
+    });
+  }
+});
+
+// 7. MARK REVIEW AS HELPFUL
+app.post('/api/reviews/:id/helpful', authenticateToken, async (req, res) => {
+  try {
+    const reviewId = req.params.id;
+
+    const review = await Review.findByIdAndUpdate(
+      reviewId,
+      { $inc: { helpful: 1 } },
+      { new: true }
+    );
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Marked as helpful',
+      helpful: review.helpful
+    });
+  } catch (error) {
+    console.error('❌ Mark helpful error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark review as helpful',
+      error: error.message
+    });
+  }
+});
+
+// 8. GET RATING STATISTICS FOR PRODUCT
+app.get('/api/products/:id/rating-stats', async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    const ratings = await Rating.find({ product: productId });
+
+    // Calculate distribution
+    const distribution = {
+      5: 0,
+      4: 0,
+      3: 0,
+      2: 0,
+      1: 0
+    };
+
+    ratings.forEach(r => {
+      distribution[r.rating]++;
+    });
+
+    const total = ratings.length;
+    const average = total > 0 
+      ? ratings.reduce((sum, r) => sum + r.rating, 0) / total 
+      : 0;
+
+    res.json({
+      success: true,
+      stats: {
+        average: Math.round(average * 10) / 10,
+        total,
+        distribution,
+        percentages: {
+          5: total > 0 ? Math.round((distribution[5] / total) * 100) : 0,
+          4: total > 0 ? Math.round((distribution[4] / total) * 100) : 0,
+          3: total > 0 ? Math.round((distribution[3] / total) * 100) : 0,
+          2: total > 0 ? Math.round((distribution[2] / total) * 100) : 0,
+          1: total > 0 ? Math.round((distribution[1] / total) * 100) : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get rating stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rating statistics',
+      error: error.message
+    });
+  }
+});
 
 // ========== DOWNLOAD LINK SYSTEM ==========
 
@@ -1498,7 +2025,9 @@ app.get('/api/orders/detailed', authenticateToken, async (req, res) => {
               description: product?.description || '',
               fileSize: product?.fileSize || '',
               version: product?.version || '',
-              productId: product?._id || null
+              productId: product?._id || null,
+              rating: product?.rating || 0,
+              reviewCount: product?.reviewCount || 0
             };
           })
         );
@@ -1791,6 +2320,10 @@ app.delete('/api/admin/products/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Also delete associated ratings and reviews
+    await Rating.deleteMany({ product: req.params.id });
+    await Review.deleteMany({ product: req.params.id });
+
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {
     console.error('❌ Delete product error:', error);
@@ -1798,94 +2331,13 @@ app.delete('/api/admin/products/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Seed products with download links
-app.post('/api/admin/products/seed-with-downloads', authenticateAdmin, async (req, res) => {
-  try {
-    const sampleProducts = [
-      {
-        title: 'Premium Landing Page Template',
-        description: 'Beautiful, responsive landing page template with modern design. Includes source files and documentation.',
-        category: 'Templates',
-        price: 49.99,
-        comparePrice: 99.99,
-        icon: '🎨',
-        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_1/view?usp=sharing',
-        fileSize: '5.2 MB',
-        version: '1.0',
-        features: ['Fully Responsive', 'Modern Design', 'Easy Customization', 'Documentation Included'],
-        isActive: true,
-        isFeatured: true,
-        stock: 999
-      },
-      {
-        title: 'React Dashboard Components',
-        description: 'Complete set of React dashboard components ready to use in your projects. Built with TypeScript.',
-        category: 'Components',
-        price: 79.99,
-        comparePrice: 149.99,
-        icon: '⚛️',
-        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_2/view?usp=sharing',
-        fileSize: '12.8 MB',
-        version: '2.1',
-        features: ['TypeScript Support', '50+ Components', 'Dark Mode', 'Fully Documented'],
-        isActive: true,
-        isFeatured: true,
-        stock: 999
-      },
-      {
-        title: 'Web Development Course Bundle',
-        description: 'Complete web development course from beginner to advanced. Includes video tutorials and project files.',
-        category: 'Courses',
-        price: 129.99,
-        comparePrice: 299.99,
-        icon: '📚',
-        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_3/view?usp=sharing',
-        fileSize: '2.5 GB',
-        version: '1.0',
-        features: ['40+ Hours Video', 'Source Code', 'Certificate', 'Lifetime Access'],
-        isActive: true,
-        isFeatured: false,
-        stock: 999
-      },
-      {
-        title: 'E-commerce Admin Dashboard',
-        description: 'Professional admin dashboard for e-commerce platforms with analytics and management tools.',
-        category: 'Templates',
-        price: 89.99,
-        comparePrice: 179.99,
-        icon: '🛒',
-        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_4/view?usp=sharing',
-        fileSize: '8.4 MB',
-        version: '1.5',
-        features: ['Analytics Dashboard', 'Order Management', 'User Management', 'Responsive Design'],
-        isActive: true,
-        isFeatured: true,
-        stock: 999
-      }
-    ];
+console.log('✅ Part 4 loaded: Complete Rating System, Download Links & Products configured');
 
-    let created = 0;
-    for (const productData of sampleProducts) {
-      const existing = await Product.findOne({ title: productData.title });
-      if (!existing) {
-        await Product.create(productData);
-        created++;
-      }
-    }
-
-    res.json({
-      success: true,
-      message: `Seeded ${created} products with download links`,
-      note: 'Remember to update the Google Drive links with actual file IDs!'
-    });
-  } catch (error) {
-    console.error('❌ Seed products error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to seed products' 
-    });
-  }
-});
+// ========== END OF PART 4 ==========
+// Continue to Part 5 for Coupon System, Blog Management & Settings
+// ========== UYEH TECH SERVER v7.0 - PART 5 OF 6 ==========
+// Coupon System, Blog Management & System Settings
+// COPY THIS AFTER PART 4
 
 // ========== COUPON MANAGEMENT ==========
 app.get('/api/admin/coupons', authenticateAdmin, async (req, res) => {
@@ -2082,13 +2534,6 @@ app.post('/api/coupons/seed', async (req, res) => {
     res.status(500).json({ success: false, message: 'Seed failed' });
   }
 });
-
-console.log('✅ Part 4 loaded: Download Links, Products & Coupons configured');
-
-// ========== END OF PART 4 ==========
-// Continue to Part 5 for Blog Management & System Settings// ========== UYEH TECH SERVER v6.0 - PART 5 OF 6 ==========
-// Blog Management & System Settings
-// COPY THIS AFTER PART 4
 
 // ========== BLOG MANAGEMENT ==========
 app.get('/api/admin/blog/posts', authenticateAdmin, async (req, res) => {
@@ -2624,6 +3069,8 @@ app.delete('/api/auth/delete-account', authenticateToken, async (req, res) => {
     await Order.deleteMany({ userId: req.user.userId });
     await PaymentMethod.deleteMany({ userId: req.user.userId });
     await Download.deleteMany({ userId: req.user.userId });
+    await Rating.deleteMany({ user: req.user.userId });
+    await Review.deleteMany({ user: req.user.userId });
     await User.findByIdAndDelete(req.user.userId);
 
     res.json({ success: true, message: 'Account deleted' });
@@ -2632,17 +3079,115 @@ app.delete('/api/auth/delete-account', authenticateToken, async (req, res) => {
   }
 });
 
-console.log('✅ Part 5 loaded: Blog Management & System Settings configured');
+console.log('✅ Part 5 loaded: Coupons, Blog Management & System Settings configured');
 
 // ========== END OF PART 5 ==========
-// Continue to Part 6 for Server Startup & Documentation// ========== UYEH TECH SERVER v6.0 - PART 6 OF 6 (FINAL) ==========
-// Server Startup, Error Handling & Complete Documentation
+// Continue to Part 6 for Server Startup & Final Documentation
+// ========== UYEH TECH SERVER v7.0 - PART 6 OF 6 (FINAL) ==========
+// Server Startup, Error Handling & Complete Documentation with Rating System
 // COPY THIS AFTER PART 5
+
+// ========== SEED PRODUCTS WITH DOWNLOADS (Optional Helper) ==========
+app.post('/api/admin/products/seed-with-downloads', authenticateAdmin, async (req, res) => {
+  try {
+    const sampleProducts = [
+      {
+        title: 'Premium Landing Page Template',
+        description: 'Beautiful, responsive landing page template with modern design. Includes source files and documentation.',
+        category: 'Templates',
+        price: 49.99,
+        comparePrice: 99.99,
+        icon: '🎨',
+        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_1/view?usp=sharing',
+        fileSize: '5.2 MB',
+        version: '1.0',
+        features: ['Fully Responsive', 'Modern Design', 'Easy Customization', 'Documentation Included'],
+        isActive: true,
+        isFeatured: true,
+        stock: 999,
+        rating: 4.5,
+        reviewCount: 12
+      },
+      {
+        title: 'React Dashboard Components',
+        description: 'Complete set of React dashboard components ready to use in your projects. Built with TypeScript.',
+        category: 'Components',
+        price: 79.99,
+        comparePrice: 149.99,
+        icon: '⚛️',
+        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_2/view?usp=sharing',
+        fileSize: '12.8 MB',
+        version: '2.1',
+        features: ['TypeScript Support', '50+ Components', 'Dark Mode', 'Fully Documented'],
+        isActive: true,
+        isFeatured: true,
+        stock: 999,
+        rating: 4.8,
+        reviewCount: 24
+      },
+      {
+        title: 'Web Development Course Bundle',
+        description: 'Complete web development course from beginner to advanced. Includes video tutorials and project files.',
+        category: 'Courses',
+        price: 129.99,
+        comparePrice: 299.99,
+        icon: '📚',
+        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_3/view?usp=sharing',
+        fileSize: '2.5 GB',
+        version: '1.0',
+        features: ['40+ Hours Video', 'Source Code', 'Certificate', 'Lifetime Access'],
+        isActive: true,
+        isFeatured: false,
+        stock: 999,
+        rating: 4.9,
+        reviewCount: 48
+      },
+      {
+        title: 'E-commerce Admin Dashboard',
+        description: 'Professional admin dashboard for e-commerce platforms with analytics and management tools.',
+        category: 'Templates',
+        price: 89.99,
+        comparePrice: 179.99,
+        icon: '🛒',
+        downloadLink: 'https://drive.google.com/file/d/YOUR_FILE_ID_4/view?usp=sharing',
+        fileSize: '8.4 MB',
+        version: '1.5',
+        features: ['Analytics Dashboard', 'Order Management', 'User Management', 'Responsive Design'],
+        isActive: true,
+        isFeatured: true,
+        stock: 999,
+        rating: 4.7,
+        reviewCount: 18
+      }
+    ];
+
+    let created = 0;
+    for (const productData of sampleProducts) {
+      const existing = await Product.findOne({ title: productData.title });
+      if (!existing) {
+        await Product.create(productData);
+        created++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Seeded ${created} products with download links and ratings`,
+      note: 'Remember to update the Google Drive links with actual file IDs!'
+    });
+  } catch (error) {
+    console.error('❌ Seed products error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to seed products' 
+    });
+  }
+});
 
 // ========== START SERVER ==========
 app.listen(PORT, () => {
   console.log('\n╔═══════════════════════════════════════════════════════════════╗');
-  console.log('║   🚀 UYEH TECH SERVER v6.0 - READY WITH DOWNLOAD LINKS     ║');
+  console.log('║  🚀 UYEH TECH SERVER v7.0 - READY WITH RATING SYSTEM!      ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝\n');
   console.log(`📡 Server URL: http://localhost:${PORT}`);
   console.log(`📧 Admin Email: ${ADMIN_EMAIL}`);
@@ -2650,21 +3195,24 @@ app.listen(PORT, () => {
   console.log(`📊 Dashboard: admin-dashboard.html\n`);
   
   console.log('╔═══════════════════════════════════════════════════════════════╗');
-  console.log('║              🎉 COMPLETE FEATURE LIST                       ║');
+  console.log('║              🎉 COMPLETE FEATURE LIST v7.0                  ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝');
   console.log('  📊 Dashboard Overview with Real-time Stats');
-  console.log('  📈 Analytics System (Revenue, Orders, Downloads)');
+  console.log('  📈 Analytics System (Revenue, Orders, Downloads, Ratings)');
   console.log('  👥 User Management (View, Ban, Delete)');
   console.log('  📦 Order Management (Track, Update, Refund)');
   console.log('  🎫 Coupon System (Create, Edit, Validate)');
   console.log('  📝 Blog Management (Posts, Comments, SEO)');
   console.log('  🛍️  Product Management (CRUD + Images)');
-  console.log('  📥 Download Link Management (NEW!)');
-  console.log('  📊 Download Tracking & Statistics (NEW!)');
+  console.log('  📥 Download Link Management');
+  console.log('  📊 Download Tracking & Statistics');
+  console.log('  ⭐ Rating & Review System (NEW!)');
+  console.log('  💬 User Reviews with Comments');
+  console.log('  📊 Rating Statistics & Analytics');
   console.log('  ⚙️  System Settings (Configuration)\n');
   
   console.log('╔═══════════════════════════════════════════════════════════════╗');
-  console.log('║               🔗 COMPLETE API ENDPOINTS                      ║');
+  console.log('║           🔗 COMPLETE API ENDPOINTS v7.0                     ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝\n');
   
   console.log('🔐 AUTHENTICATION:');
@@ -2702,10 +3250,20 @@ app.listen(PORT, () => {
   console.log('  POST   /api/orders/create-with-coupon - Create order with coupon');
   console.log('  POST   /api/orders/verify-payment    - Verify Flutterwave payment\n');
   
-  console.log('📥 DOWNLOAD MANAGEMENT (NEW):');
+  console.log('📥 DOWNLOAD MANAGEMENT:');
   console.log('  GET    /api/orders/detailed          - Get orders with download links');
   console.log('  POST   /api/orders/track-download    - Track product download');
   console.log('  GET    /api/admin/downloads/stats    - Download statistics (admin)\n');
+  
+  console.log('⭐ RATING & REVIEW SYSTEM (NEW):');
+  console.log('  POST   /api/products/:id/rate        - Submit/update rating');
+  console.log('  DELETE /api/products/:id/rate        - Remove rating');
+  console.log('  GET    /api/products/:id/can-rate    - Check if user can rate');
+  console.log('  POST   /api/products/:id/review      - Submit review with rating');
+  console.log('  GET    /api/products/:id/reviews     - Get product reviews');
+  console.log('  GET    /api/products/:id/user-rating - Get user\'s rating');
+  console.log('  POST   /api/reviews/:id/helpful      - Mark review as helpful');
+  console.log('  GET    /api/products/:id/rating-stats - Get rating statistics\n');
   
   console.log('🎫 COUPON MANAGEMENT:');
   console.log('  GET    /api/admin/coupons            - List all coupons');
@@ -2720,7 +3278,7 @@ app.listen(PORT, () => {
   console.log('  GET    /api/products                 - List products (public)');
   console.log('  GET    /api/products/:id             - Get product details');
   console.log('  POST   /api/admin/products           - Create product');
-  console.log('  PUT    /api/admin/products/:id       - Update product (includes downloadLink)');
+  console.log('  PUT    /api/admin/products/:id       - Update product');
   console.log('  DELETE /api/admin/products/:id       - Delete product');
   console.log('  POST   /api/admin/products/seed-with-downloads - Seed sample products\n');
   
@@ -2757,6 +3315,15 @@ app.listen(PORT, () => {
   console.log('  3. Login at Admind.html');
   console.log('  4. Access admin dashboard at admin-dashboard.html\n');
   
+  console.log('⭐ RATING SYSTEM SETUP:');
+  console.log('════════════════════════════════════════════════════════════════');
+  console.log('  1. Users can rate products after login (1-5 stars)');
+  console.log('  2. Users can write reviews with comments');
+  console.log('  3. Reviews show "Verified Purchase" badge if applicable');
+  console.log('  4. Users can mark reviews as helpful');
+  console.log('  5. Product ratings update automatically');
+  console.log('  6. View rating statistics per product\n');
+  
   console.log('📥 DOWNLOAD LINK SETUP:');
   console.log('════════════════════════════════════════════════════════════════');
   console.log('  1. Upload files to Google Drive');
@@ -2770,6 +3337,13 @@ app.listen(PORT, () => {
   console.log('════════════════════════════════════════════════════════════════');
   console.log('  Seed Coupons:  POST /api/coupons/seed');
   console.log('  Seed Products: POST /api/admin/products/seed-with-downloads\n');
+  
+  console.log('💡 RATING SYSTEM USAGE:');
+  console.log('════════════════════════════════════════════════════════════════');
+  console.log('  Frontend: Use the rating artifacts provided');
+  console.log('  Backend: All endpoints ready and working');
+  console.log('  Features: Stars, Reviews, Comments, Helpful votes');
+  console.log('  Stats: View average ratings and distributions\n');
   
   console.log('✅ Server ready to accept connections!\n');
 });
@@ -2799,273 +3373,5 @@ process.on('SIGINT', async () => {
 });
 
 console.log('✅ Part 6 loaded: Server startup complete!');
-console.log('\n🎉 ALL 6 PARTS LOADED SUCCESSFULLY! SERVER v6.0 READY!\n');
+console.log('\n🎉 ALL 6 PARTS LOADED SUCCESSFULLY! SERVER v7.0 READY WITH RATING SYSTEM!\n');
 
-// ========== END OF PART 6 ==========
-// ========== SERVER v6.0 COMPLETE WITH DOWNLOAD LINKS ==========
-
-/*
-═══════════════════════════════════════════════════════════════════════════
-                  UYEH TECH SERVER v6.0 - COMPLETE DOCUMENTATION
-═══════════════════════════════════════════════════════════════════════════
-
-VERSION: 6.0.0 with Download Links
-RELEASE DATE: December 2024
-STATUS: Production Ready
-ADMIN EMAIL: uyehtech@gmail.com
-
-COMPLETE INSTALLATION GUIDE:
-───────────────────────────────────────────────────────────────────────────
-1. CREATE PROJECT:
-   mkdir uyeh-tech-server
-   cd uyeh-tech-server
-   npm init -y
-
-2. INSTALL DEPENDENCIES:
-   npm install express mongoose bcryptjs jsonwebtoken cors axios dotenv
-
-3. CREATE server.js:
-   - Copy all 6 parts into a single server.js file
-   - Parts must be in order (1-6)
-
-4. CREATE .env FILE:
-   MONGO_URI=your_mongodb_connection_string
-   JWT_SECRET=your_secret_key_here
-   TERMII_API_KEY=your_termii_key (optional)
-   TERMII_SENDER_EMAIL=noreply@uyehtech.com
-   FLUTTERWAVE_SECRET_KEY=your_flutterwave_key
-   PORT=3000
-   NODE_ENV=production
-
-5. RUN SERVER:
-   node server.js
-
-DOWNLOAD LINK FEATURE - COMPLETE GUIDE:
-───────────────────────────────────────────────────────────────────────────
-✨ NEW FEATURES IN v6.0:
-  ✅ Download link field in Product schema
-  ✅ Enhanced orders endpoint with download links
-  ✅ Download tracking system
-  ✅ Download statistics for admins
-  ✅ Automatic product linking to orders
-  ✅ Sample products with download links
-
-📥 SETTING UP DOWNLOAD LINKS:
-
-OPTION 1: Google Drive (Recommended for beginners)
-  1. Upload your product file to Google Drive
-  2. Right-click → Share → Change to "Anyone with the link"
-  3. Copy the link (looks like: drive.google.com/file/d/FILE_ID/view)
-  4. Extract the FILE_ID from the URL
-  5. Use direct download format in product:
-     https://drive.google.com/uc?export=download&id=FILE_ID
-  6. Or use view format (users click to download):
-     https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-
-OPTION 2: Dropbox
-  1. Upload file to Dropbox
-  2. Get shareable link
-  3. Add ?dl=1 to the end for direct download
-  4. Example: https://www.dropbox.com/s/FILE_ID/file.zip?dl=1
-
-OPTION 3: Your Own Server
-  1. Upload files to your server
-  2. Use direct URL: https://yourserver.com/downloads/product.zip
-  3. Make sure files are publicly accessible
-
-OPTION 4: AWS S3 / Cloudflare R2
-  1. Upload to cloud storage
-  2. Generate public or presigned URLs
-  3. Use those URLs as download links
-
-📝 ADDING DOWNLOAD LINKS TO PRODUCTS:
-
-METHOD 1: Admin Dashboard
-  1. Login to admin dashboard (admin-dashboard.html)
-  2. Go to Products section
-  3. Create or Edit product
-  4. Add download link in the "Download Link" field
-  5. Save product
-
-METHOD 2: API Request
-  POST /api/admin/products
-  {
-    "title": "Product Name",
-    "description": "Description",
-    "category": "Category",
-    "price": 49.99,
-    "downloadLink": "https://drive.google.com/uc?export=download&id=YOUR_FILE_ID",
-    "fileSize": "5.2 MB",
-    "version": "1.0"
-  }
-
-METHOD 3: Seed Sample Products
-  POST /api/admin/products/seed-with-downloads
-  (Remember to update the FILE_ID placeholders in the code!)
-
-🎯 HOW DOWNLOAD LINKS WORK:
-
-1. CUSTOMER PURCHASES:
-   - Customer completes order
-   - Order status becomes "completed"
-   - Download links are accessible
-
-2. ACCESSING DOWNLOADS:
-   - Customer visits my-orders.html or success.html
-   - Frontend calls GET /api/orders/detailed
-   - Response includes full product details with download links
-   - Customer can download immediately
-
-3. DOWNLOAD TRACKING:
-   - When customer clicks download button
-   - Frontend calls POST /api/orders/track-download
-   - System records: user, product, order, timestamp, IP, user-agent
-   - Admin can view download statistics
-
-4. ADMIN MONITORING:
-   - View download stats: GET /api/admin/downloads/stats
-   - See: total downloads, popular products, recent downloads
-   - Track download trends over time
-
-API ENDPOINTS FOR DOWNLOAD SYSTEM:
-───────────────────────────────────────────────────────────────────────────
-📥 USER ENDPOINTS:
-  GET  /api/orders/detailed
-    - Returns orders with full product details including download links
-    - Only shows downloads for completed orders
-    - Automatically links products to order items
-
-  POST /api/orders/track-download
-    Body: { "productId": "...", "orderId": "..." }
-    - Tracks when user downloads a product
-    - Verifies user owns the order
-    - Records download statistics
-
-📊 ADMIN ENDPOINTS:
-  GET  /api/admin/downloads/stats
-    - Total downloads count
-    - Most popular products
-    - Recent downloads list
-    - Downloads by date (last 30 days)
-
-  POST /api/admin/products/seed-with-downloads
-    - Seeds 4 sample products with download links
-    - Includes templates, components, and courses
-    - Remember to update FILE_IDs!
-
-FRONTEND INTEGRATION EXAMPLE:
-───────────────────────────────────────────────────────────────────────────
-// Fetch orders with download links
-const response = await fetch('http://localhost:3000/api/orders/detailed', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
-const data = await response.json();
-
-// Display download buttons for completed orders
-data.orders.forEach(order => {
-  if (order.canDownload) {
-    order.items.forEach(item => {
-      if (item.downloadLink) {
-        // Show download button
-        console.log(`Download: ${item.title}`);
-        console.log(`Link: ${item.downloadLink}`);
-        
-        // Track download when clicked
-        await fetch('http://localhost:3000/api/orders/track-download', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            productId: item.productId,
-            orderId: order._id
-          })
-        });
-      }
-    });
-  }
-});
-
-SECURITY CONSIDERATIONS:
-───────────────────────────────────────────────────────────────────────────
-✅ Download verification:
-  - Only completed orders can download
-  - User must own the order
-  - JWT authentication required
-
-✅ Link protection options:
-  - Use presigned URLs (AWS S3, R2)
-  - Implement download tokens
-  - Set expiring links
-  - Limit download attempts
-
-✅ File storage best practices:
-  - Don't store sensitive files publicly
-  - Use CDN for large files
-  - Monitor bandwidth usage
-  - Consider download limits per user
-
-COMPLETE FEATURE CHECKLIST:
-───────────────────────────────────────────────────────────────────────────
-✅ Admin Dashboard System
-✅ User Management (Ban, Delete, View)
-✅ Order Management (Track, Update, Refund)
-✅ Product Management (CRUD Operations)
-✅ Download Link Management (NEW!)
-✅ Download Tracking System (NEW!)
-✅ Download Statistics (NEW!)
-✅ Coupon System (Create, Validate)
-✅ Blog Management (Posts, Comments, SEO)
-✅ Analytics Dashboard (Revenue, Orders, Downloads)
-✅ Email OTP Verification
-✅ Payment Integration (Flutterwave)
-✅ 2FA Support
-✅ System Settings
-✅ User Preferences
-✅ Profile Management
-✅ Password Reset
-✅ Ban System
-
-TESTING THE DOWNLOAD SYSTEM:
-───────────────────────────────────────────────────────────────────────────
-1. Start server: node server.js
-2. Create admin account with uyehtech@gmail.com
-3. Seed products: POST /api/admin/products/seed-with-downloads
-4. Update FILE_IDs in seeded products
-5. Create test order with test user
-6. Mark order as completed (admin dashboard)
-7. Test user fetches orders: GET /api/orders/detailed
-8. Download links should appear
-9. Track download: POST /api/orders/track-download
-10. View stats: GET /api/admin/downloads/stats
-
-TROUBLESHOOTING:
-───────────────────────────────────────────────────────────────────────────
-❌ Download links not showing?
-  → Check order status is "completed"
-  → Verify product has downloadLink field populated
-  → Check user authentication token
-
-❌ Google Drive links not working?
-  → Ensure file sharing is "Anyone with the link"
-  → Use correct format: drive.google.com/uc?export=download&id=FILE_ID
-  → Check file ID is correct
-
-❌ Download tracking not working?
-  → Verify productId and orderId are valid
-  → Check user owns the order
-  → Ensure authentication token is valid
-
-SUPPORT:
-───────────────────────────────────────────────────────────────────────────
-For issues or questions:
-  📧 Email: uyehtech@gmail.com
-  📝 Check server logs for detailed error messages
-  🔍 Use console.log statements for debugging
-
-═══════════════════════════════════════════════════════════════════════════
-                    🎉 SERVER v6.0 COMPLETE & READY!
-                       WITH FULL DOWNLOAD LINK SUPPORT
-═══════════════════════════════════════════════════════════════════════════
-*/
